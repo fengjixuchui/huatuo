@@ -333,6 +333,12 @@ if (ARR->max_length <= (il2cpp_array_size_t)INDEX) { \
 		}
 	}
 
+	inline void HiUnboxAny2StackObject(Il2CppObject* obj, Il2CppClass* klass, void* data)
+	{
+		HiUnboxAny(obj, klass, data);
+		ExpandLocationData2StackDataByType(data, klass->byval_arg.type);
+	}
+
 	inline void HiCastClass(Il2CppObject* obj, Il2CppClass* klass)
 	{
 		if (obj != nullptr && !il2cpp::vm::Class::IsAssignableFrom(klass, obj->klass))
@@ -4787,11 +4793,7 @@ else \
 				    IL2CPP_ASSERT(__obj < __ctorFrameBase);
 				    StackObject* _frameBasePtr = (StackObject*)(void*)(localVarBase + __ctorFrameBase);
 				    std::memcpy(_frameBasePtr + 1, (void*)(localVarBase + __argBase), __argStackObjectNum * sizeof(StackObject)); // move arg
-				#if VALUE_TYPE_METHOD_POINTER_IS_ADJUST_METHOD
-				    _frameBasePtr->ptr = ((StackObject*)(void*)(localVarBase + __obj)) - 1;
-				#else
 				    _frameBasePtr->ptr = (StackObject*)(void*)(localVarBase + __obj);
-				#endif
 				    int32_t _typeSize = GetTypeValueSize(__method->klass);
 				    InitDefaultN((void*)(localVarBase + __obj), _typeSize); // init after move
 				    CALL_INTERP_VOID((ip + 18), __method, _frameBasePtr);
@@ -4972,6 +4974,10 @@ else \
 				    }
 				    else 
 				    {
+				        if (_actualMethod->methodPointer == nullptr)
+				        {
+				            RaiseMethodPointerNotImplementException(_actualMethod);
+				        }
 				        ((Managed2NativeCallMethod)imi->resolveDatas[__managed2NativeMethod])(_actualMethod, _argIdxData, localVarBase, nullptr);
 				        ip += 14;
 				    }
@@ -5005,6 +5011,10 @@ else \
 				    }
 				    else 
 				    {
+				        if (_actualMethod->methodPointer == nullptr)
+				        {
+				            RaiseMethodPointerNotImplementException(_actualMethod);
+				        }
 				        ((Managed2NativeCallMethod)imi->resolveDatas[__managed2NativeMethod])(_actualMethod, _argIdxData, localVarBase, _ret);
 				        ip += 16;
 				    }
@@ -5040,6 +5050,10 @@ else \
 				    }
 				    else 
 				    {
+				        if (_actualMethod->methodPointer == nullptr)
+				        {
+				            RaiseMethodPointerNotImplementException(_actualMethod);
+				        }
 				        ((Managed2NativeCallMethod)imi->resolveDatas[__managed2NativeMethod])(_actualMethod, _argIdxData, localVarBase, _ret);
 				        ExpandLocationData2StackDataByType(_ret, (LocationDataType)__retLocationType);
 				        ip += 18;
@@ -5191,7 +5205,7 @@ else \
 					uint16_t __dst = *(uint16_t*)(ip + 2);
 					uint16_t __obj = *(uint16_t*)(ip + 4);
 					Il2CppClass* __klass = *(Il2CppClass**)(ip + 6);
-				    HiUnboxAny((*(Il2CppObject**)(localVarBase + __obj)), __klass, (void*)(localVarBase + __dst));
+				    HiUnboxAny2StackObject((*(Il2CppObject**)(localVarBase + __obj)), __klass, (void*)(localVarBase + __dst));
 				    ip += 14;
 				    continue;
 				}

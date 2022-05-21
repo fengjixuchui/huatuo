@@ -76,6 +76,29 @@ namespace interpreter
 		}
 	}
 
+	inline void ExpandLocationData2StackDataByType(void* retValue, Il2CppTypeEnum type)
+	{
+		switch (type)
+		{
+		case IL2CPP_TYPE_BOOLEAN:
+		case IL2CPP_TYPE_I1:
+			*(int32_t*)retValue = *(int8_t*)retValue;
+			break;
+		case IL2CPP_TYPE_U1:
+			*(int32_t*)retValue = *(uint8_t*)retValue;
+			break;
+		case IL2CPP_TYPE_I2:
+			*(int32_t*)retValue = *(int16_t*)retValue;
+			break;
+		case IL2CPP_TYPE_U2:
+		case IL2CPP_TYPE_CHAR:
+			*(int32_t*)retValue = *(uint16_t*)retValue;
+			break;
+		default:
+			break;
+		}
+	}
+
 	ArgDesc GetValueTypeArgDescBySize(uint32_t size);
 
 	inline bool IsSimpleStackObjectCopyArg(LocationDataType type)
@@ -94,9 +117,9 @@ namespace interpreter
 	Il2CppObject* TranslateNativeValueToBoxValue(const Il2CppType* type, void* value);
 	void ConvertInvokeArgs(StackObject* resultArgs, const MethodInfo* method, void** __args);
 
-	bool ComputSignature(const MethodInfo* method, bool call, char* sigBuf, size_t bufferSize);
-	bool ComputSignature(const Il2CppMethodDefinition* method, bool call, char* sigBuf, size_t bufferSize);
-	bool ComputSignature(const Il2CppType* ret, const Il2CppType* params, uint32_t paramCount, bool instanceCall, char* sigBuf, size_t bufferSize);
+	bool ComputeSignature(const MethodInfo* method, bool call, char* sigBuf, size_t bufferSize);
+	bool ComputeSignature(const Il2CppMethodDefinition* method, bool call, char* sigBuf, size_t bufferSize);
+	bool ComputeSignature(const Il2CppType* ret, const Il2CppType* params, uint32_t paramCount, bool instanceCall, char* sigBuf, size_t bufferSize);
 
 }
 }

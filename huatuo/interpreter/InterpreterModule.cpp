@@ -62,7 +62,7 @@ namespace interpreter
 	const NativeCallMethod* GetNativeCallMethod(const T* method, bool forceStatic)
 	{
 		char sigName[1000];
-		ComputSignature(method, !forceStatic, sigName, sizeof(sigName) - 1);
+		ComputeSignature(method, !forceStatic, sigName, sizeof(sigName) - 1);
 		auto it = s_calls.find(sigName);
 		return (it != s_calls.end()) ? &it->second : nullptr;
 	}
@@ -71,7 +71,7 @@ namespace interpreter
 	const NativeInvokeMethod* GetNativeInvokeMethod(const T* method)
 	{
 		char sigName[1000];
-		ComputSignature(method, false, sigName, sizeof(sigName) - 1);
+		ComputeSignature(method, false, sigName, sizeof(sigName) - 1);
 		auto it = s_invokes.find(sigName);
 		return (it != s_invokes.end()) ? &it->second : nullptr;
 	}
@@ -79,31 +79,25 @@ namespace interpreter
 	static void RaiseMethodNotSupportException(const MethodInfo* method, const char* desc)
 	{
 		TEMP_FORMAT(errMsg, "%s not support. %s.%s::%s", desc, method->klass->namespaze, method->klass->name, method->name);
-		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetTypeLoadException(errMsg));
+		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetExecutionEngineException(errMsg));
 	}
 
 	static void RaiseMethodNotSupportException(const Il2CppMethodDefinition* method, const char* desc)
 	{
 		Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromTypeDefinitionIndex(method->declaringType);
 		TEMP_FORMAT(errMsg, "%s not support. %s.%s::%s", desc, klass->namespaze, klass->name, il2cpp::vm::GlobalMetadata::GetStringFromIndex(method->nameIndex));
-		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetTypeLoadException(errMsg));
+		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetExecutionEngineException(errMsg));
 	}
 
-	static void NotSupportAOTSignature()
+	static void NotSupportNative2Managed()
 	{
-		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetTypeInitializationException("", nullptr));
-	}
-
-	void NotSupportManaged2Native(const MethodInfo* method, uint16_t* argVarIndexs, StackObject* localVarBase, void* ret)
-	{
-		TEMP_FORMAT(errMsg, "Managed2Native method missing. %s.%s::%s", method->klass->namespaze, method->klass->name, method->name);
-		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetTypeLoadException(errMsg));
+		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetExecutionEngineException("NotSupportNative2Managed"));
 	}
 
 	static void* NotSupportInvoke(Il2CppMethodPointer, const MethodInfo* method, void*, void**)
 	{
 		TEMP_FORMAT(errMsg, "Invoke method missing. %s.%s::%s", method->klass->namespaze, method->klass->name, method->name);
-		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetTypeLoadException(errMsg));
+		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetExecutionEngineException(errMsg));
 		return nullptr;
 	}
 
@@ -115,7 +109,7 @@ namespace interpreter
 			return ncm->method;
 		}
 		//RaiseMethodNotSupportException(method, "GetMethodPointer");
-		return (Il2CppMethodPointer)NotSupportManaged2Native;
+		return (Il2CppMethodPointer)NotSupportNative2Managed;
 	}
 
 	Il2CppMethodPointer InterpreterModule::GetMethodPointer(const MethodInfo* method)
@@ -126,7 +120,7 @@ namespace interpreter
 			return ncm->method;
 		}
 		//RaiseMethodNotSupportException(method, "GetMethodPointer");
-		return (Il2CppMethodPointer)NotSupportManaged2Native;
+		return (Il2CppMethodPointer)NotSupportNative2Managed;
 	}
 
 	Il2CppMethodPointer InterpreterModule::GetAdjustThunkMethodPointer(const Il2CppMethodDefinition* method)
@@ -141,7 +135,7 @@ namespace interpreter
 			return ncm->adjustThunkMethod;
 		}
 		//RaiseMethodNotSupportException(method, "GetAdjustThunkMethodPointer");
-		return (Il2CppMethodPointer)NotSupportManaged2Native;
+		return (Il2CppMethodPointer)NotSupportNative2Managed;
 	}
 
 	Il2CppMethodPointer InterpreterModule::GetAdjustThunkMethodPointer(const MethodInfo* method)
@@ -156,7 +150,7 @@ namespace interpreter
 			return ncm->adjustThunkMethod;
 		}
 		//RaiseMethodNotSupportException(method, "GetAdjustThunkMethodPointer");
-		return (Il2CppMethodPointer)NotSupportManaged2Native;
+		return (Il2CppMethodPointer)NotSupportNative2Managed;
 	}
 
 	Managed2NativeCallMethod InterpreterModule::GetManaged2NativeMethodPointer(const MethodInfo* method, bool forceStatic)
@@ -166,20 +160,25 @@ namespace interpreter
 		{
 			return ncm->managed2NativeMethod;
 		}
-		RaiseMethodNotSupportException(method, "GetManaged2NativeMethodPointer");
+		char sigName[1000];
+		ComputeSignature(method, !forceStatic, sigName, sizeof(sigName) - 1);
+
+		TEMP_FORMAT(errMsg, "GetManaged2NativeMethodPointer. sinature:%s not support.", sigName);
+		RaiseMethodNotSupportException(method, errMsg);
 		return nullptr;
 	}
 
 	Managed2NativeCallMethod InterpreterModule::GetManaged2NativeMethodPointer(const metadata::ResolveStandAloneMethodSig& method)
 	{
 		char sigName[1000];
-		ComputSignature(&method.returnType, method.params, method.paramCount, false, sigName, sizeof(sigName) - 1);
+		ComputeSignature(&method.returnType, method.params, method.paramCount, false, sigName, sizeof(sigName) - 1);
 		auto it = s_calls.find(sigName);
 		if (it != s_calls.end())
 		{
 			return it->second.managed2NativeMethod;
 		}
-		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetMissingMethodException(sigName));
+		TEMP_FORMAT(errMsg, "GetManaged2NativeMethodPointer. sinature:%s not support.", sigName);
+		il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetExecutionEngineException(errMsg));
 		return nullptr;
 	}
 

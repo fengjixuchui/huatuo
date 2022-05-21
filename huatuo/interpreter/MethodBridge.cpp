@@ -17,25 +17,6 @@ namespace huatuo
 	{
 		ArgDesc GetValueTypeArgDescBySize(uint32_t size)
 		{
-#if HUATUO_TARGET_ARM
-			if (size <= 8)
-			{
-				return { LocationDataType::U8, 1 };
-			}
-			else if (size <= 16)
-			{
-				return { LocationDataType::U16, 2 };
-			}
-			switch (size)
-			{
-			case 16: return { LocationDataType::S_16, 2 };
-			case 20: return { LocationDataType::S_20, 3 };
-			case 24: return { LocationDataType::S_24, 3 };
-			case 28: return { LocationDataType::S_28, 4 };
-			case 32: return { LocationDataType::S_32, 4 };
-			default: return { LocationDataType::S_N, (uint32_t)metadata::GetStackSizeByByteSize(size) };
-			}
-#else
 			switch (size)
 			{
 			case 1:
@@ -50,7 +31,6 @@ namespace huatuo
 			case 32: return { LocationDataType::S_32, 4 };
 			default: return { LocationDataType::S_N, (uint32_t)metadata::GetStackSizeByByteSize(size) };
 			}
-#endif
 		}
 
 		ArgDesc GetTypeArgDesc(const Il2CppType* type)
@@ -126,115 +106,6 @@ namespace huatuo
 		void CopyArgs(StackObject* dstBase, StackObject* argBase, ArgDesc* args, uint32_t paramCount, uint32_t totalParamStackObjectSize)
 		{
 			uint32_t dstOffset = 0;
-#if HUATUO_TARGET_ARM
-			uint32_t srcOffset = 0;
-			for (uint32_t i = 0, n = paramCount; i < n; i++)
-			{
-				ArgDesc& arg = args[i];
-				StackObject* dst = dstBase + dstOffset;
-				StackObject* src = argBase + srcOffset;
-				switch (arg.type)
-				{
-				case LocationDataType::I1:
-				{
-					dst->i64 = *(int8_t*)src;
-					++srcOffset;
-					++dstOffset;
-					break;
-				}
-				case LocationDataType::U1:
-				{
-					dst->i64 = *(uint8_t*)src;
-					++srcOffset;
-					++dstOffset;
-					break;
-				}
-				case LocationDataType::I2:
-				{
-					dst->i64 = *(int16_t*)src;
-					++srcOffset;
-					++dstOffset;
-					break;
-				}
-				case LocationDataType::U2:
-				{
-					dst->i64 = *(uint16_t*)src;
-					++srcOffset;
-					++dstOffset;
-					break;
-				}
-				case LocationDataType::U8:
-				{
-					dst->i64 = *(int64_t*)src;
-					++srcOffset;
-					++dstOffset;
-					break;
-				}
-				case LocationDataType::U16:
-				{
-					*(ValueTypeSize16*)dst = *(ValueTypeSize16*)src;
-					srcOffset += 2;
-					dstOffset += 2;
-					break;
-				}
-				case LocationDataType::S_12:
-				{
-					// when size > 8, arg is ref to struct
-					Copy12(dst, src->ptr);
-					++srcOffset;
-					dstOffset += 2;
-					break;
-				}
-				case LocationDataType::S_16:
-				{
-					// when size > 8, arg is ref to struct
-					Copy16(dst, src->ptr);
-					++srcOffset;
-					dstOffset += 2;
-					break;
-				}
-				case LocationDataType::S_20:
-				{
-					Copy20(dst, src->ptr);
-					++srcOffset;
-					dstOffset += 3;
-					break;
-				}
-				case LocationDataType::S_24:
-				{
-					Copy24(dst, src->ptr);
-					++srcOffset;
-					dstOffset += 3;
-					break;
-				}
-				case LocationDataType::S_28:
-				{
-					Copy28(dst, src->ptr);
-					++srcOffset;
-					dstOffset += 4;
-					break;
-				}
-				case LocationDataType::S_32:
-				{
-					Copy32(dst, src->ptr);
-					++srcOffset;
-					dstOffset += 4;
-					break;
-				}
-				case LocationDataType::S_N:
-				{
-					std::memcpy(dst, src->ptr, arg.stackObjectSize * sizeof(StackObject));
-					++srcOffset;
-					dstOffset += arg.stackObjectSize;
-					break;
-				}
-				default:
-				{
-					RaiseHuatuoExecutionEngineException("CopyArgs not support data type");
-				}
-				}
-			}
-#else
 			for (uint32_t i = 0, n = paramCount; i < n; i++)
 			{
 				ArgDesc& arg = args[i];
@@ -272,11 +143,13 @@ namespace huatuo
 					++dstOffset;
 					break;
 				}
-				case LocationDataType::U16:
-				{
-					RaiseHuatuoExecutionEngineException("CopyArgs not support U16");
-					break;
-				}
+				//case LocationDataType::U16:
+				//{
+				//	RaiseHuatuoExecutionEngineException("CopyArgs not support U16");
+				//	Copy12(dst, src->ptr);
+				//	dstOffset += 2;
+				//	break;
+				//}
 				case LocationDataType::S_12:
 				{
 					// when size > 8, arg is ref to struct
@@ -327,7 +200,6 @@ namespace huatuo
 				}
 				}
 			}
-#endif
 			IL2CPP_ASSERT(dstOffset == totalParamStackObjectSize);
 		}
 
@@ -338,7 +210,7 @@ namespace huatuo
 			{
 				*locType = argDesc.type;
 			}
-			return argDesc.type <= LocationDataType::U16;
+			return argDesc.type <= LocationDataType::U8;
 		}
 
 		Il2CppObject* TranslateNativeValueToBoxValue(const Il2CppType* type, void* value)
@@ -356,49 +228,6 @@ namespace huatuo
 
 		void ConvertInvokeArgs(StackObject* resultArgs, const MethodInfo* method, void** __args)
 		{
-#if HUATUO_TARGET_ARM
-			uint32_t dstOffset = 0;
-			for (uint8_t i = 0; i < method->parameters_count; i++)
-			{
-				const Il2CppType* argType = GET_METHOD_PARAMETER_TYPE(method->parameters[i]);
-				StackObject* dst = resultArgs + dstOffset;
-				++dstOffset;
-				if (argType->byref)
-				{
-					dst->ptr = __args[i];
-				}
-				else if (huatuo::metadata::IsValueType(argType))
-				{
-					LocationDataType locType;
-					if (IsPassArgAsValue(argType, &locType))
-					{
-						if (locType == LocationDataType::U16)
-						{
-							*(ValueTypeSize16*)dst = *(ValueTypeSize16*)__args[i];
-							++dstOffset; // extra StackObject
-						}
-						else
-						{
-							dst->i64 = *(uint64_t*)__args[i];
-						}
-						dst->i64 = *(uint64_t*)__args[i];
-					}
-					else
-					{
-						dst->ptr = __args[i];
-					}
-				}
-				//else if (argType->type == IL2CPP_TYPE_PTR)
-				//{
-				//    dst->ptr = __args[i];
-				//}
-				else
-				{
-					dst->ptr = __args[i];
-				}
-
-			}
-#else
 			for (uint8_t i = 0; i < method->parameters_count; i++)
 			{
 				const Il2CppType* argType = GET_METHOD_PARAMETER_TYPE(method->parameters[i]);
@@ -427,9 +256,80 @@ namespace huatuo
 				{
 					dst->ptr = __args[i];
 				}
-
 			}
-#endif
+		}
+
+		struct HFATypeInfo
+		{
+			const Il2CppType* eleType;
+			int32_t count;
+		};
+
+
+		static bool ComputeHFATypeInfo0(Il2CppClass* klass, HFATypeInfo& typeInfo)
+		{
+			il2cpp::vm::Class::SetupFields(klass);
+			for (uint16_t i = 0; i < klass->field_count; i++)
+			{
+				FieldInfo* field = klass->fields + i;
+				const Il2CppType* ftype = field->type;
+				if (!metadata::IsInstanceField(ftype))
+				{
+					continue;
+				}
+				if (ftype->byref)
+				{
+					return false;
+				}
+				if ((ftype->type != IL2CPP_TYPE_R4 && ftype->type != IL2CPP_TYPE_R8))
+				{
+					if (ftype->type == IL2CPP_TYPE_VALUETYPE || (ftype->type == IL2CPP_TYPE_GENERICINST && ftype->data.generic_class->type->type == IL2CPP_TYPE_VALUETYPE))
+					{
+						Il2CppClass* fieldKlass = il2cpp::vm::Class::FromIl2CppType(ftype);
+						if (!ComputeHFATypeInfo0(fieldKlass, typeInfo))
+						{
+							return false;
+						}
+					}
+					else
+					{
+						return false;
+					}
+				}
+				else if (typeInfo.eleType == nullptr || metadata::IsTypeEqual(ftype, typeInfo.eleType))
+				{
+					typeInfo.eleType = ftype;
+					++typeInfo.count;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			return typeInfo.count <= 4;
+		}
+
+		static bool ComputeHFATypeInfo(Il2CppClass* klass, HFATypeInfo& typeInfo)
+		{
+			typeInfo = {};
+			int32_t size = metadata::GetTypeValueSize(klass);
+			switch (size)
+			{
+			case 8:
+			case 12:
+			case 16:
+			case 24:
+			case 32: break;
+			default: return false;
+			}
+			
+			bool isHFA = ComputeHFATypeInfo0(klass, typeInfo);
+			if (isHFA && typeInfo.count >= 2 && typeInfo.count <= 4)
+			{
+				int32_t fieldSize = typeInfo.eleType->type == IL2CPP_TYPE_R4 ? 4 : 8;
+				return size == fieldSize * typeInfo.count;
+			}
+			return false;
 		}
 
 		static void AppendString(char* sigBuf, size_t bufSize, size_t& pos, const char* str)
@@ -450,33 +350,96 @@ namespace huatuo
 		{
 			int typeSize = il2cpp::vm::Class::GetValueSize(klass, nullptr);
 #if HUATUO_TARGET_ARM
+			HFATypeInfo typeInfo = {};
+			if (ComputeHFATypeInfo(klass, typeInfo))
+			{
+				if (typeInfo.eleType->type == IL2CPP_TYPE_R4)
+				{
+					switch (typeInfo.count)
+					{
+					case 2:
+					{
+						AppendString(sigBuf, bufferSize, pos, "vf2");
+						return;
+					}
+					case 3:
+					{
+						AppendString(sigBuf, bufferSize, pos, "vf3");
+						return;
+					}
+					case 4:
+					{
+						AppendString(sigBuf, bufferSize, pos, "vf4");
+						return;
+					}
+					}
+				}
+				else
+				{
+					IL2CPP_ASSERT(typeInfo.eleType->type == IL2CPP_TYPE_R8);
+					switch (typeInfo.count)
+					{
+					case 2:
+					{
+						AppendString(sigBuf, bufferSize, pos, "vd2");
+						return;
+					}
+					case 3:
+					{
+						AppendString(sigBuf, bufferSize, pos, "vd3");
+						return;
+					}
+					case 4:
+					{
+						AppendString(sigBuf, bufferSize, pos, "vd4");
+						return;
+					}
+					}
+				}
+			}
+			// FIXME HSV
+
 			if (typeSize <= 8)
 			{
-				AppendString(sigBuf, bufferSize, pos, "i");
+				AppendString(sigBuf, bufferSize, pos, "i8");
 			}
 			else if (typeSize <= 16)
 			{
-				AppendString(sigBuf, bufferSize, pos, "j");
+				AppendString(sigBuf, bufferSize, pos, "s2");
 			}
 			else
 			{
 				if (returnType)
 				{
-					pos += std::sprintf(sigBuf + pos, "s%d", typeSize);
+					pos += std::sprintf(sigBuf + pos, "S%d", typeSize);
 				}
 				else
 				{
-					AppendString(sigBuf, bufferSize, pos, "i");
+					AppendString(sigBuf, bufferSize, pos, "sr");
 				}
 			}
 #else
-			if (returnType)
+			switch (typeSize)
 			{
-				pos += std::sprintf(sigBuf + pos, "s%d", typeSize);
+			case 1:
+			case 2:
+			case 4:
+			case 8:
+			{
+				AppendString(sigBuf, bufferSize, pos, "i8");
+				break;
 			}
-			else
+			default:
 			{
-				AppendString(sigBuf, bufferSize, pos, "i");
+				if (returnType)
+				{
+					pos += std::sprintf(sigBuf + pos, "S%d", typeSize);
+				}
+				else
+				{
+					AppendString(sigBuf, bufferSize, pos, "sr");
+				}
+			}
 			}
 #endif
 		}
@@ -485,14 +448,26 @@ namespace huatuo
 		{
 			if (type->byref)
 			{
-				AppendString(sigBuf, bufferSize, pos, "i");
+				AppendString(sigBuf, bufferSize, pos, "i8");
 				return;
 			}
 			switch (type->type)
 			{
 			case IL2CPP_TYPE_VOID: AppendString(sigBuf, bufferSize, pos, "v"); break;
+#if HUATUO_TARGET_ARM
+			case IL2CPP_TYPE_BOOLEAN:
+			case IL2CPP_TYPE_I1:
+			case IL2CPP_TYPE_U1: AppendString(sigBuf, bufferSize, pos, "i1"); break;
+			case IL2CPP_TYPE_I2:
+			case IL2CPP_TYPE_U2:
+			case IL2CPP_TYPE_CHAR: AppendString(sigBuf, bufferSize, pos, "i2"); break;
+			case IL2CPP_TYPE_I4:
+			case IL2CPP_TYPE_U4: AppendString(sigBuf, bufferSize, pos, "i4"); break;
+			case IL2CPP_TYPE_R4: AppendString(sigBuf, bufferSize, pos, "r4"); break;
+#else
 			case IL2CPP_TYPE_R4:
-			case IL2CPP_TYPE_R8: AppendString(sigBuf, bufferSize, pos, "f"); break;
+#endif
+			case IL2CPP_TYPE_R8: AppendString(sigBuf, bufferSize, pos, "r8"); break;
 			case IL2CPP_TYPE_TYPEDBYREF:
 			{
 				IL2CPP_ASSERT(sizeof(Il2CppTypedRef) == sizeof(void*) * 3);
@@ -511,7 +486,7 @@ namespace huatuo
 				const Il2CppType* underlyingGenericType = type->data.generic_class->type;
 				if (underlyingGenericType->type == IL2CPP_TYPE_CLASS)
 				{
-					AppendString(sigBuf, bufferSize, pos, "i");
+					AppendString(sigBuf, bufferSize, pos, "i8");
 				}
 				else
 				{
@@ -522,18 +497,18 @@ namespace huatuo
 				}
 				break;
 			}
-			default: AppendString(sigBuf, bufferSize, pos, "i"); break;
+			default: AppendString(sigBuf, bufferSize, pos, "i8"); break;
 			}
 		}
 
-		bool ComputSignature(const Il2CppType* ret, const Il2CppType* params, uint32_t paramCount, bool instanceCall, char* sigBuf, size_t bufferSize)
+		bool ComputeSignature(const Il2CppType* ret, const Il2CppType* params, uint32_t paramCount, bool instanceCall, char* sigBuf, size_t bufferSize)
 		{
 			size_t pos = 0;
 			AppendSignature(ret, true, sigBuf, bufferSize, pos);
 
 			if (instanceCall)
 			{
-				AppendString(sigBuf, bufferSize, pos, "i");
+				AppendString(sigBuf, bufferSize, pos, "i8");
 			}
 
 			for (uint8_t i = 0; i < paramCount; i++)
@@ -544,7 +519,7 @@ namespace huatuo
 			return true;
 		}
 
-		bool ComputSignature(const Il2CppMethodDefinition* method, bool call, char* sigBuf, size_t bufferSize)
+		bool ComputeSignature(const Il2CppMethodDefinition* method, bool call, char* sigBuf, size_t bufferSize)
 		{
 			size_t pos = 0;
 
@@ -554,7 +529,7 @@ namespace huatuo
 
 			if (call && metadata::IsInstanceMethod(method))
 			{
-				AppendString(sigBuf, bufferSize, pos, "i");
+				AppendString(sigBuf, bufferSize, pos, "i8");
 			}
 
 			for (uint8_t i = 0; i < method->parameterCount; i++)
@@ -566,7 +541,7 @@ namespace huatuo
 			return true;
 		}
 
-		bool ComputSignature(const MethodInfo* method, bool call, char* sigBuf, size_t bufferSize)
+		bool ComputeSignature(const MethodInfo* method, bool call, char* sigBuf, size_t bufferSize)
 		{
 			size_t pos = 0;
 
@@ -574,7 +549,7 @@ namespace huatuo
 
 			if (call && metadata::IsInstanceMethod(method))
 			{
-				AppendString(sigBuf, bufferSize, pos, "i");
+				AppendString(sigBuf, bufferSize, pos, "i8");
 			}
 
 			for (uint8_t i = 0; i < method->parameters_count; i++)
